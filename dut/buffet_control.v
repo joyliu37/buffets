@@ -113,7 +113,7 @@ reg     [1:0]               read_state;
 // Output registers
 reg     [ADDR_WIDTH-1:0]    read_idx_o_r, push_idx_o_r, update_idx_o_r, credit_out_r;
 reg     [DATA_WIDTH-1:0]    push_data_o_r, update_data_o_r;
-reg                         read_idx_valid_o_r, push_data_valid_o_r, update_valid_o_r, credit_valid_r;
+reg                         push_data_valid_o_r, update_valid_o_r, credit_valid_r;
 reg                         read_idx_ready_o_r, update_ready_o_r;
 reg                         read_will_update_r, read_will_update_stage_r;
 reg     [ADDR_WIDTH-1:0]    read_idx_i_r, update_idx_i_r, read_idx_stage_r;
@@ -127,6 +127,8 @@ reg     [`SCOREBOARD_SIZE-1:0]  scoreboard_valid;
 //	                   WIRES 
 //------------------------------------------------------------------
 
+//change this into a wire
+wire read_idx_valid_o_r;
 // Head Tail chase has two cases: (1) one where tail is greater than head and (2) vice versa
 wire                        tail_greater_than_head = (tail < head)? 1'b0:1'b1;
 
@@ -189,7 +191,7 @@ priorityEncoder #(`SCOREBOARD_SIZE) u_nextslot(.in(scoreboard_valid), .out(next_
 wire    [`SCOREBOARD_SIZE-1:0]          match_reversed;
 wire    [$clog2(`SCOREBOARD_SIZE):0]    match_addr;
 reverse #(`SCOREBOARD_SIZE) u_reverse(.bus_i(match_update), .bus_o(match_reversed));
-leadingZero8 u_LZE8(.sequence(match_reversed), .index(match_addr));
+leadingZero8 u_LZE8(.sequences(match_reversed), .index(match_addr));
 
 //------------------------------------------------------------------
 //	                   SEQUENTIAL LOGIC
@@ -332,7 +334,8 @@ always @(posedge clk or negedge nreset_i) begin
 
         // Dispatch and go back
         DISPATCH:
-            read_state <= READY;
+            read_state <= (read_idx_valid_i_r) ? ((stall) ? WAIT: DISPATCH): READY;
+            //read_state <= READY;
 
         endcase
     end
@@ -395,17 +398,19 @@ always @(posedge clk or negedge nreset_i) begin
 end
 
 // --------------- Pipeline Output -- if clean, send output ------//
-
-always @(posedge clk or negedge nreset_i) begin
-    if(~nreset_i)
-        read_idx_valid_o_r <= 1'b0;
-    else
-        read_idx_valid_o_r <= (read_state == DISPATCH)?1'b1:1'b0;
-end
+//change it to combinational logic
+//always @(posedge clk or negedge nreset_i) begin
+//    if(~nreset_i)
+//        read_idx_valid_o_r <= 1'b0;
+//    else
+//        read_idx_valid_o_r <= (read_state == DISPATCH)?1'b1:1'b0;
+//end
+assign read_idx_valid_o_r = (read_state == DISPATCH) ? 1'b1 : 1'b0;
 
 always @(posedge clk) begin
-    if(read_state == DISPATCH)
-        read_idx_o_r <= read_idx_i_r;
+    //always assign the datapath
+    //if(read_state == DISPATCH)
+    read_idx_o_r <= read_idx_i_r;
 end
 
 //----------------------------------------------------------------------------------//

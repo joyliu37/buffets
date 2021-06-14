@@ -75,11 +75,11 @@ endmodule
 
 module leadingZero32
     (
-    sequence,
+    sequences,
     index
     );
     
-    input   [31:0]  sequence;
+    input   [31:0]  sequences;
     output  [5:0]   index;
 
     wire [31:0] enc_sequence;
@@ -91,7 +91,7 @@ module leadingZero32
 	generate
 		for (i=0; i<16; i=i+1) begin : encoder
 		encode u_enc(
-			.array(sequence[i*2 +: 2]),
+			.array(sequences[i*2 +: 2]),
 			.enc_array(enc_sequence[i*2 +: 2])
 		);
 	end 
@@ -138,13 +138,13 @@ endmodule
 
 module leadingZero8
     (
-    sequence,
+    sequences,
     index
     );
     
     parameter W = 8;
 
-    input   [W-1:0]  sequence;
+    input   [W-1:0]  sequences;
     output  [3:0]   index;
 
     wire [W-1:0] enc_sequence;
@@ -154,7 +154,7 @@ module leadingZero8
 	generate
 		for (i=0; i<W/2; i=i+1) begin : encoder
 		encode u_enc(
-			.array(sequence[i*2 +: 2]),
+			.array(sequences[i*2 +: 2]),
 			.enc_array(enc_sequence[i*2 +: 2])
 		);
 	end 
