@@ -140,19 +140,20 @@ always @(posedge clk or negedge nreset_i) begin
 end
 
 // If the data out ready is asserted high, we send the data
-always @(posedge clk)
-    if(read_event)
-        data_o_r <= regfile[tail];
+// FIFO should always expose valid data to the wire
+//always @(posedge clk)
+    //if(read_event)
+    //    data_o_r <= regfile[tail];
 
 // Data out valid is asserted high whenever we can read out
-always @(posedge clk or negedge nreset_i) begin
-    if(~nreset_i) begin
-        data_o_valid_r <= 1'b0;
-    end
-    else begin
-        data_o_valid_r <= read_event;
-    end
-end
+//always @(posedge clk or negedge nreset_i) begin
+//    if(~nreset_i) begin
+//        data_o_valid_r <= 1'b0;
+//    end
+//    //else begin
+//        //data_o_valid_r <= ~empty;
+//    //end
+//end
 
 // Tail is updated as the data is read
 always @(posedge clk or negedge nreset_i) begin
@@ -190,8 +191,9 @@ end
 //	                Assign Outputs
 //------------------------------------------------------------------
 
+assign data_o_r = regfile[tail];
 assign data_o = data_o_r;
-assign data_o_valid = data_o_valid_r;
+assign data_o_valid = ~empty;
 assign data_i_ready = data_i_ready_r;
 
 

@@ -112,7 +112,7 @@ reg     [1:0]               read_state;
 
 // Output registers
 reg     [ADDR_WIDTH-1:0]    read_idx_o_r, push_idx_o_r, update_idx_o_r, credit_out_r;
-reg     [DATA_WIDTH-1:0]    push_data_o_r, update_data_o_r;
+reg     [DATA_WIDTH-1:0]    push_data_o_r, update_data_o_r, update_data_i_delay;
 reg                         push_data_valid_o_r, update_valid_o_r, credit_valid_r;
 reg                         read_idx_ready_o_r, update_ready_o_r;
 reg                         read_will_update_r, read_will_update_stage_r;
@@ -128,7 +128,8 @@ reg     [`SCOREBOARD_SIZE-1:0]  scoreboard_valid;
 //------------------------------------------------------------------
 
 //change this into a wire
-wire read_idx_valid_o_r;
+//wire read_idx_valid_o_r;
+reg read_idx_valid_o_r;
 // Head Tail chase has two cases: (1) one where tail is greater than head and (2) vice versa
 wire                        tail_greater_than_head = (tail < head)? 1'b0:1'b1;
 
@@ -158,7 +159,8 @@ wire [1:0]                  event_cur = {read_event, shrink_event, write_event, 
 // check if the read is between the tail and head
 // This changes based on tail_greater_than_head value (first check if the read is valid)
 
-wire                        read_valid_hgtt = ((read_idx_i_r < tail) && (read_idx_i_r >= head))? 1'b1 :1'b0;
+//wire                        read_valid_hgtt = ((read_idx_i_r < tail) && (read_idx_i_r >= head))? 1'b1 :1'b0;
+wire                        read_valid_hgtt = ((read_idx_i + head < tail) && (read_idx_i + head >= head))? 1'b1 :1'b0;
 wire                        read_valid_hgtt_n = ~read_valid_hgtt;
 wire                        read_valid = (tail_greater_than_head)? read_valid_hgtt : read_valid_hgtt_n;
 // WAR hazard is when you are trying to read something that is not present in the buffet yet - wait till you receive it.
@@ -182,6 +184,7 @@ wire                        raw_hazard = |match_read;
 
 // Pipeline should stall on hazards
 wire                        stall = raw_hazard | war_hazard | ~read_data_ready_i;
+//wire                        stall = raw_hazard | war_hazard ;
 
 // Next scoreboard entry - TODO use generic LZ
 wire    [$clog2(`SCOREBOARD_SIZE)-1:0] next_entry;
@@ -298,9 +301,10 @@ always @(posedge clk or negedge nreset_i) begin
 end
 
 always @(posedge clk) begin
+    update_data_i_delay <= update_data_i;
     if(update_valid_i_r) begin
         update_idx_o_r  <= update_idx_i_r;
-        update_data_o_r <= update_data_i;
+        update_data_o_r <= update_data_i_delay;
     end
 end
 
@@ -349,25 +353,34 @@ always @(posedge clk or negedge nreset_i) begin
         read_idx_i_r        <= {ADDR_WIDTH{1'b0}};
     end
     else begin
-        if(read_event & (read_state != WAIT)) begin
+        //Remove the stage stage
+        if(read_event) begin
             read_idx_valid_i_r  <= read_idx_valid_i;
             read_will_update_r  <= read_will_update;
             read_idx_i_r        <= read_idx_i + head;
         end
-        else if((read_idx_valid_stage_r) & (read_state == DISPATCH)) begin
-            read_idx_valid_i_r  <= 1'b1;
-            read_will_update_r  <= read_will_update_stage_r;
-            read_idx_i_r        <= read_idx_stage_r;
-        end
+
+        //else if((read_idx_valid_stage_r) & (read_state == DISPATCH)) begin
+        //    read_idx_valid_i_r  <= 1'b1;
+        //    read_will_update_r  <= read_will_update_stage_r;
+        //    read_idx_i_r        <= read_idx_stage_r;
+        //end
         else begin
             read_idx_valid_i_r  <= 1'b0;
         end
     end
 end
 
+/*The delay of read idx is really complex here
+* read_idx_i        => read_idx_i_r ``````=> read_idx_i_r_delay => read_idx_o_r
+* read_idx_valid_i  => read_idx_valid_i_r => read_state         => read_idx_valid_o_r
+*                      stall              => read_state         => read_idx_stage_r => apply to the next read idx
+*/
 // When we are waiting for hazard to be cleared, there is a chance for one more
 // read to appear (due to the propogation delay of ready signal). In that case.
 // we need to stage that read to be considered after the hazard is cleared.
+//
+reg     [ADDR_WIDTH-1:0]    read_idx_i_r_delay;
 always @(posedge clk or negedge nreset_i) begin
     if(~nreset_i) begin
         read_idx_valid_stage_r  <= 1'b0;
@@ -375,14 +388,30 @@ always @(posedge clk or negedge nreset_i) begin
         read_idx_stage_r        <= {ADDR_WIDTH{1'b0}};
     end
     else begin
-        if(read_event & (read_state == WAIT)) begin
+
+        //Add a pipeline delay stage for read idx
+        read_idx_i_r_delay <= read_idx_i_r;
+        if(read_event & (read_state == WAIT) && (~read_idx_valid_stage_r)) begin
             read_idx_valid_stage_r  <= read_idx_valid_i;
             read_will_update_stage_r<= read_will_update;
-            read_idx_stage_r        <= read_idx_i + head;
+            read_idx_stage_r        <= read_idx_i_r_delay;
+            //Still assign the read idx to sram interface
+            read_idx_o_r <= read_idx_i_r_delay;
         end
+
+        //If we have staged valid we need to assign this value to the read idx 
+        //TODO: make sure we are not sending any read_idx in
+        else if(read_idx_valid_stage_r & (read_state == DISPATCH)) begin
+            read_idx_o_r <= read_idx_stage_r;
+            read_idx_valid_stage_r <= 0;
+        end
+        else
+            read_idx_o_r <= read_idx_i_r_delay;
     end
 end
 
+
+//This logic seems redundant after we change the ready valid to fifo not full
 // Ready is pulled low whenever (1) You detect a hazard (2) waiting to resolve a hazard
 // (3) there is a staged data already.
 always @(posedge clk or negedge nreset_i) begin
@@ -398,20 +427,14 @@ always @(posedge clk or negedge nreset_i) begin
 end
 
 // --------------- Pipeline Output -- if clean, send output ------//
-//change it to combinational logic
-//always @(posedge clk or negedge nreset_i) begin
-//    if(~nreset_i)
-//        read_idx_valid_o_r <= 1'b0;
-//    else
-//        read_idx_valid_o_r <= (read_state == DISPATCH)?1'b1:1'b0;
-//end
-assign read_idx_valid_o_r = (read_state == DISPATCH) ? 1'b1 : 1'b0;
-
-always @(posedge clk) begin
-    //always assign the datapath
-    //if(read_state == DISPATCH)
-    read_idx_o_r <= read_idx_i_r;
+always @(posedge clk or negedge nreset_i) begin
+    if(~nreset_i)
+        read_idx_valid_o_r <= 1'b0;
+    else
+        read_idx_valid_o_r <= (read_state == DISPATCH)?1'b1:1'b0;
 end
+//change it to combinational logic
+//assign read_idx_valid_o_r = (read_state == DISPATCH) ? 1'b1 : 1'b0;
 
 //----------------------------------------------------------------------------------//
 
@@ -473,6 +496,9 @@ assign  update_ready_o = 1'b1;
 // Read
 assign read_idx_o = read_idx_o_r;
 assign read_idx_valid_o = read_idx_valid_o_r;
-assign read_idx_ready_o = read_idx_ready_o_r;
+//assign read_idx_ready_o = read_idx_ready_o_r & read_valid;
+
+//make it invalid only when we have hazard
+assign read_idx_ready_o = read_valid;
 
 endmodule

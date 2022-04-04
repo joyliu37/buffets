@@ -20,13 +20,15 @@
 
 
 // TODO: Make these parametrizable
+//`include "buffet_defines.v:"
+
 module priorityEncoder
 			(
 			in,
 			out
 			);
 
-parameter 	WIDTH = 8;
+parameter 	WIDTH = `SCOREBOARD_SIZE;
 localparam  OWIDTH = $clog2(WIDTH);
 
 input 	[WIDTH-1:0]		in;
