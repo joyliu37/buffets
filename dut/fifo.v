@@ -88,14 +88,14 @@ wire                        empty = ((occupancy == 1'b0)&&(state != FULL))? 1'b1
 
 // Four events: Only read, only write, both or none
 wire                        read_event = ~empty & data_o_ready;
-wire                        write_event = data_i_valid & (state != FULL);
+wire                        write_event = data_i_valid & (occupancy != FIFO_DEPTH);
 wire [1:0]                  event_cur = {write_event, read_event};
 
 // Almost full refers to FIFO full if another data is written
     // Case 1, when head greater than tail (hgtt) - Distance is 2
-wire                        almost_full_hgtt = (head_tail_distance == FIFO_DEPTH-2)? 1'b1 : 1'b0;
+wire                        almost_full_hgtt = (head_tail_distance == FIFO_DEPTH-5)? 1'b1 : 1'b0;
     // Case 2, when ~hgtt. Head is 0 and tail offset is 1, or head is 1 and tail offset is 0
-wire                        almost_full_hgtt_n = ((head + tail_offset) == FIFO_DEPTH-2)? 1'b1: 1'b0;
+wire                        almost_full_hgtt_n = ((head + tail_offset) == FIFO_DEPTH-5)? 1'b1: 1'b0;
     // Mux the above two to get the almost full
 wire                        almost_full = (head_greater_than_tail) ? almost_full_hgtt : almost_full_hgtt_n;
 
