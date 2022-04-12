@@ -159,8 +159,7 @@ wire [1:0]                  event_cur = {read_event, shrink_event, write_event, 
 // check if the read is between the tail and head
 // This changes based on tail_greater_than_head value (first check if the read is valid)
 
-//wire                        read_valid_hgtt = ((read_idx_i_r < tail) && (read_idx_i_r >= head))? 1'b1 :1'b0;
-wire                        read_valid_hgtt = ((read_idx_i + head < tail) && (read_idx_i + head >= head))? 1'b1 :1'b0;
+wire                        read_valid_hgtt = ((read_idx_i_r < tail) && (read_idx_i_r >= head))? 1'b1 :1'b0;
 wire                        read_valid_hgtt_n = ~read_valid_hgtt;
 wire                        read_valid = (tail_greater_than_head)? read_valid_hgtt : read_valid_hgtt_n;
 // WAR hazard is when you are trying to read something that is not present in the buffet yet - wait till you receive it.
@@ -354,7 +353,7 @@ always @(posedge clk or negedge nreset_i) begin
     end
     else begin
         //Remove the stage stage
-        if(read_event) begin
+        if(read_event && read_idx_ready_o) begin
             read_idx_valid_i_r  <= read_idx_valid_i;
             read_will_update_r  <= read_will_update;
             read_idx_i_r        <= read_idx_i + head;
@@ -499,6 +498,8 @@ assign read_idx_valid_o = read_idx_valid_o_r;
 //assign read_idx_ready_o = read_idx_ready_o_r & read_valid;
 
 //make it invalid only when we have hazard
-assign read_idx_ready_o = read_valid;
+//assign read_idx_ready_o = read_valid && (!stall);
+//remove read valid since it contains that logic
+assign read_idx_ready_o = !stall;
 
 endmodule
