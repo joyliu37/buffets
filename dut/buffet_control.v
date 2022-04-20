@@ -72,7 +72,7 @@ localparam READY=2'b00, WAIT=2'b01, DISPATCH=2'b10;
 input                       clk, nreset_i;
 
 // Read Ports (In and Out)
-input   [ADDR_WIDTH-1:0]    read_idx_i;
+input   [15:0]    read_idx_i;
 output  [ADDR_WIDTH-1:0]    read_idx_o;
 input                       read_idx_valid_i;
 input                       read_data_ready_i;
@@ -107,7 +107,8 @@ output                      credit_valid;
 //	                   REGISTERS
 //------------------------------------------------------------------
 
-reg     [ADDR_WIDTH-1:0]    tail, head;
+reg     [15:0]              tail;
+reg     [ADDR_WIDTH-1:0]    head;
 reg     [1:0]               read_state;
 
 // Output registers
@@ -116,7 +117,7 @@ reg     [DATA_WIDTH-1:0]    push_data_o_r, update_data_o_r, update_data_i_delay;
 reg                         push_data_valid_o_r, update_valid_o_r, credit_valid_r;
 reg                         read_idx_ready_o_r, update_ready_o_r;
 reg                         read_will_update_r, read_will_update_stage_r;
-reg     [ADDR_WIDTH-1:0]    read_idx_i_r, update_idx_i_r, read_idx_stage_r;
+reg     [15:0]              read_idx_i_r, update_idx_i_r, read_idx_stage_r;
 reg                         read_idx_valid_i_r, read_idx_valid_stage_r, update_valid_i_r;
 reg                         stall_r;
 
@@ -137,10 +138,10 @@ wire                        tail_greater_than_head = (tail < head)? 1'b0:1'b1;
 wire    [ADDR_WIDTH-1:0]     head_offset = SIZE - head;
 
 // Distance between tail and head (applicable in case 1)
-wire    [ADDR_WIDTH-1:0]     tail_head_distance = tail - head;
+wire    [15:0]     tail_head_distance = tail - head;
 
 // In case 1, tail_head_distance directly gives occupancy, in case (2) offset needs to be added to tail.
-wire    [ADDR_WIDTH-1:0]     occupancy = (tail_greater_than_head)? tail_head_distance :
+wire    [15:0]     occupancy = (tail_greater_than_head)? tail_head_distance :
                                         (tail + head_offset);
 
 // Available space in the bbuffer
@@ -258,7 +259,7 @@ end
 always @(posedge clk) begin
     if(push_data_valid_i)
         push_data_o_r <= push_data_i;
-        push_idx_o_r  <= tail;
+        push_idx_o_r  <= tail[ADDR_WIDTH-1: 0];
 end
 
 //----------------------------------------------------------------------------------//
@@ -379,7 +380,7 @@ end
 // read to appear (due to the propogation delay of ready signal). In that case.
 // we need to stage that read to be considered after the hazard is cleared.
 //
-reg     [ADDR_WIDTH-1:0]    read_idx_i_r_delay;
+reg     [15:0]    read_idx_i_r_delay;
 always @(posedge clk or negedge nreset_i) begin
     if(~nreset_i) begin
         read_idx_valid_stage_r  <= 1'b0;

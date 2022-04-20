@@ -88,7 +88,7 @@ module buffet(
 	// Read response matches scratchpad. However read responses may be
 	// additionally delayed until fill and update hazards have cleared.
 	// No response for shrinks.
-	input  [IDX_WIDTH-1:0]  read_idx;
+	input  [15:0]  read_idx;
 	input                   read_idx_valid;
     output                  read_idx_ready;
 	input                   read_will_update;
@@ -117,7 +117,8 @@ module buffet(
 //	                    WIRES/REGS
 //------------------------------------------------------------------
  
-wire    [IDX_WIDTH-1:0]     read_idx_fifo, update_idx_fifo;
+wire    [15:0]     read_idx_fifo;
+wire    [IDX_WIDTH-1:0]     update_idx_fifo;
 wire    [DATA_WIDTH-1:0]    push_data_fifo, update_data_fifo;
 wire                        read_idx_fifo_valid, read_idx_buffet_ready, read_will_update_fifo, is_shrink_fifo;
 wire                        push_data_fifo_valid, update_idx_fifo_valid, update_buffet_ready, read_data_fifo_ready;
@@ -137,7 +138,7 @@ reg                         update_receive_ack_r;
 
 fifo    
         #(
-            .DATA_WIDTH(IDX_WIDTH+2),
+            .DATA_WIDTH(18),
             .FIFO_DEPTH(`READREQ_FIFO_DEPTH)
         )
         u_channel_readreq
