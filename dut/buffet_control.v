@@ -148,14 +148,14 @@ wire    [15:0]     occupancy = (tail_greater_than_head)? tail_head_distance :
 wire    [ADDR_WIDTH-1:0]     space_avail = SIZE - occupancy;
 
 // Empty FIFO
-wire                        empty = (occupancy == 1'b0)? 1'b1:1'b0;
+wire                        empty = (occupancy == 16'b0)? 1'b1:1'b0;
 
 // All the possible events
 wire                        read_event = ~empty & read_idx_valid_i & ~read_is_shrink;
 wire                        shrink_event = ~empty & read_idx_valid_i & read_is_shrink;
 wire                        write_event = push_data_valid_i;
 wire                        update_event = update_valid_i;
-wire [1:0]                  event_cur = {read_event, shrink_event, write_event, update_event};
+//wire [1:0]                  event_cur = {read_event, shrink_event, write_event, update_event};
 
 // check if the read is between the tail and head
 // This changes based on tail_greater_than_head value (first check if the read is valid)
@@ -470,7 +470,7 @@ always @(posedge clk or negedge nreset_i) begin
             scoreboard_valid[next_entry]    <= 1'b1;
             scoreboard[next_entry]          <= read_idx_i_r;
         end
-        if(update_valid_i_r) begin
+        if(update_valid_o_r) begin
             scoreboard_valid[match_addr]    <= 1'b0;
         end
     end
