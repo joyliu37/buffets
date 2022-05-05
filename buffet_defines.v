@@ -25,6 +25,7 @@
 `define DATA_WIDTH      32
 `define SIZE            2 ** `IDX_WIDTH - 1
 `define SEPARATE_WRITE_PORTS    1
+`define USE_GF_MACRO            0
 `define SUPPORTS_UPDATE         1
 `define READREQ_FIFO_DEPTH      8
 `define UPDATE_FIFO_DEPTH       8

@@ -59,6 +59,7 @@ module buffet(
 	// statically removed (only Fill writes the RAM)
 	// This would reduce hardware cost.
 	parameter SUPPORTS_UPDATE = `SUPPORTS_UPDATE;
+	parameter USE_GF_MACRO = `USE_GF_MACRO;
  
 	// If this is 0, Fill and Update data will
 	// share a single arbitrated RAM write port.
@@ -250,7 +251,9 @@ buffet_control
             );
 
 // RAM
-dpram 	
+generate 
+    if (USE_GF_MACRO) begin
+        dpram 	
 			#(
             .ADDR_WIDTH(IDX_WIDTH),
             .DATA_WIDTH(DATA_WIDTH),
@@ -271,8 +274,31 @@ dpram
 			.RDATA(read_data_buffet),
 			.RVALID(read_data_buffet_valid)
 			);
-
-
+    end 
+    else begin
+        dpram_aha
+			#(
+            .ADDR_WIDTH(IDX_WIDTH),
+            .DATA_WIDTH(DATA_WIDTH),
+			.SEPARATE_WRITE_PORTS(SEPARATE_WRITE_PORTS)
+			)
+            u_dpram
+			(
+			.CLK(clk),
+			.RESET(nreset_i),
+			.ARADDR(araddr_buffet),
+			.ARVALID(arvalid_buffet),
+			.WADDR0(waddr0_buffet),
+			.WVALID0(wvalid0_buffet),
+			.WADDR1(waddr1_buffet),
+			.WVALID1(wvalid1_buffet),
+			.WDATA0(wdata0_buffet),
+			.WDATA1(wdata1_buffet),
+			.RDATA(read_data_buffet),
+			.RVALID(read_data_buffet_valid)
+			);
+    end
+endgenerate
 //------------------------------------------------------------------
 //	                   SEQUENTIAL LOGIC 
 //------------------------------------------------------------------
